@@ -1,3 +1,15 @@
+--[[
+Script Oficial !KINGMODSCRACKED Westbound
+Inclui: ESP Jogadores, ESP Itens Valiosos, Gun Mod, Mansion Status, CMDs, e AIMBOT (silent aim no player mais prÃ³ximo atÃ© 500m)
+Comandos:
+.gun mod / .gun mod0
+.esp / .esp0
+.search / .search0
+.mansion
+.cmds
+.aimbot (ativa/desativa)
+--]]
+
 game:GetService("StarterGui"):SetCore("SendNotification", {
     Title = "Script Inicializado";
     Text = "Feito por !KINGMODSCRACKED\nDigite .cmds para ver todos os comandos!";
@@ -7,7 +19,7 @@ game:GetService("StarterGui"):SetCore("SendNotification", {
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- ESP Highlight verde minimalista
+-- ESP Jogadores
 local espActive = false
 function enableESP()
     espActive = true
@@ -167,7 +179,7 @@ function updateBillboards()
 end
 game:GetService("RunService").RenderStepped:Connect(updateBillboards)
 
--- FunÃ§Ã£o Mansion: mostra status ao digitar .mansion
+-- Mansion status
 local function checkMansion()
     local mansionStatus = "Desconhecido"
     local found = false
@@ -196,7 +208,7 @@ local function checkMansion()
     })
 end
 
--- ESP Highlight para itens valiosos (.search/.search0)
+-- ESP Itens Valiosos
 local itemNames = {
     "$20", "Diamond", "Ruby", "Emerald", "Sapphire", "Gem", "RareStone", "PreciousStone", "GoldNugget", "SilverNugget"
 }
@@ -255,7 +267,7 @@ function enableItemESP()
     })
 end
 
--- FunÃ§Ã£o comandos (.cmds)
+-- CMDs funÃ§Ã£o
 function showCmds()
     local txt = [[
 .comandos disponÃ­veis:
@@ -271,6 +283,8 @@ function showCmds()
 
 .mansion      = Status mansÃ£o assombrada
 .cmds         = Mostrar comandos
+
+.aimbot       = Aimbot (silent aim) ativar/desativar
     ]]
     game:GetService("StarterGui"):SetCore("SendNotification", {
         Title = "Comandos do Script";
@@ -279,7 +293,70 @@ function showCmds()
     })
 end
 
--- Listener do chat
+-- AIMBOT (Silent Aim)
+local aimbotEnabled = false
+local notifyAimbot = function(txt)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {Title="Aimbot", Text=txt, Duration=4})
+    end)
+end
+
+local function getClosestPlayer()
+    local myChar = LocalPlayer.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+    local myPos = myChar.HumanoidRootPart.Position
+    local closest, dist = nil, 500
+    for _,plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChildOfClass("Humanoid") then
+            local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+            if hum.Health > 0 then
+                local d = (plr.Character.HumanoidRootPart.Position - myPos).Magnitude
+                if d < dist then
+                    closest = plr
+                    dist = d
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local hooked = false
+function enableAimbot()
+    if aimbotEnabled then notifyAimbot("Aimbot jÃ¡ ativado!") return end
+    aimbotEnabled = true
+    notifyAimbot("Aimbot ativado!")
+    -- Silent Aim universal (hook FireServer e Raycast)
+    if not hooked then
+        hooked = true
+        for _,v in ipairs(getgc(true)) do
+            if typeof(v) == "function" and debug.getinfo(v).name and tostring(debug.getinfo(v).name):lower():find("fire") then
+                local old
+                old = hookfunction(v, function(...)
+                    if not aimbotEnabled then return old(...) end
+                    local args = {...}
+                    local closest = getClosestPlayer()
+                    if closest and closest.Character and closest.Character:FindFirstChild("HumanoidRootPart") then
+                        for k=1,#args do
+                            if typeof(args[k]) == "Vector3" then
+                                args[k] = closest.Character.HumanoidRootPart.Position
+                            end
+                        end
+                    end
+                    return old(unpack(args))
+                end)
+            end
+        end
+    end
+end
+
+function disableAimbot()
+    if not aimbotEnabled then notifyAimbot("Aimbot jÃ¡ desativado!") return end
+    aimbotEnabled = false
+    notifyAimbot("Aimbot desativado!")
+end
+
+-- Comandos do chat
 LocalPlayer.Chatted:Connect(function(chat)
     chat = chat:lower()
     if chat:find("%.gun mod0") then
@@ -298,5 +375,14 @@ LocalPlayer.Chatted:Connect(function(chat)
         enableItemESP()
     elseif chat:find("%.cmds") then
         showCmds()
+    elseif chat:find("%.aimbot") then
+        if aimbotEnabled then
+            disableAimbot()
+        else
+            enableAimbot()
+        end
     end
 end)
+
+-- Mensagem inicial aimbot
+notifyAimbot("Digite .aimbot no chat para ativar/desativar.\nTiro acerta o jogador mais prÃ³ximo (atÃ© 500m).")
